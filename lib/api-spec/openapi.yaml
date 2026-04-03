@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ProposAI API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: proposals
+    description: Proposal management
+  - name: dashboard
+    description: Dashboard and analytics
 paths:
   /healthz:
     get:
@@ -24,6 +28,239 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /proposals:
+    get:
+      operationId: listProposals
+      tags: [proposals]
+      summary: List all proposals for the authenticated user
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [draft, sent, accepted, declined]
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of proposals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProposalList"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: createProposal
+      tags: [proposals]
+      summary: Create a new proposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProposalBody"
+      responses:
+        "201":
+          description: Proposal created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+        "401":
+          description: Unauthorized
+
+  /proposals/{id}:
+    get:
+      operationId: getProposal
+      tags: [proposals]
+      summary: Get a proposal by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposal details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    put:
+      operationId: updateProposal
+      tags: [proposals]
+      summary: Update a proposal
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProposalBody"
+      responses:
+        "200":
+          description: Proposal updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteProposal
+      tags: [proposals]
+      summary: Delete a proposal
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /proposals/{id}/generate:
+    post:
+      operationId: generateProposalContent
+      tags: [proposals]
+      summary: Generate AI content for a proposal section
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateProposalContentBody"
+      responses:
+        "200":
+          description: Generated content (streamed as text/event-stream)
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /proposals/{id}/duplicate:
+    post:
+      operationId: duplicateProposal
+      tags: [proposals]
+      summary: Duplicate an existing proposal
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Duplicated proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /proposals/{id}/status:
+    patch:
+      operationId: updateProposalStatus
+      tags: [proposals]
+      summary: Update proposal status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProposalStatusBody"
+      responses:
+        "200":
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+        "401":
+          description: Unauthorized
+
+  /dashboard/recent:
+    get:
+      operationId: getRecentProposals
+      tags: [dashboard]
+      summary: Get recent proposals for dashboard feed
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Recent proposals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Proposal"
+        "401":
+          description: Unauthorized
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +271,205 @@ components:
       required:
         - status
 
+    ProposalStatus:
+      type: string
+      enum: [draft, sent, accepted, declined]
+
+    Proposal:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        clientName:
+          type: string
+        clientEmail:
+          type: string
+          nullable: true
+        projectTitle:
+          type: string
+        industry:
+          type: string
+          nullable: true
+        projectDescription:
+          type: string
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        timeline:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/ProposalStatus"
+        executiveSummary:
+          type: string
+          nullable: true
+        understanding:
+          type: string
+          nullable: true
+        approach:
+          type: string
+          nullable: true
+        timelinePlan:
+          type: string
+          nullable: true
+        investment:
+          type: string
+          nullable: true
+        whyUs:
+          type: string
+          nullable: true
+        nextSteps:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - clientName
+        - projectTitle
+        - status
+        - createdAt
+        - updatedAt
+
+    ProposalList:
+      type: object
+      properties:
+        proposals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Proposal"
+        total:
+          type: integer
+      required:
+        - proposals
+        - total
+
+    CreateProposalBody:
+      type: object
+      properties:
+        clientName:
+          type: string
+        clientEmail:
+          type: string
+          nullable: true
+        projectTitle:
+          type: string
+        industry:
+          type: string
+          nullable: true
+        projectDescription:
+          type: string
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        timeline:
+          type: string
+          nullable: true
+      required:
+        - clientName
+        - projectTitle
+
+    UpdateProposalBody:
+      type: object
+      properties:
+        clientName:
+          type: string
+        clientEmail:
+          type: string
+          nullable: true
+        projectTitle:
+          type: string
+        industry:
+          type: string
+          nullable: true
+        projectDescription:
+          type: string
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        timeline:
+          type: string
+          nullable: true
+        executiveSummary:
+          type: string
+          nullable: true
+        understanding:
+          type: string
+          nullable: true
+        approach:
+          type: string
+          nullable: true
+        timelinePlan:
+          type: string
+          nullable: true
+        investment:
+          type: string
+          nullable: true
+        whyUs:
+          type: string
+          nullable: true
+        nextSteps:
+          type: string
+          nullable: true
+
+    UpdateProposalStatusBody:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ProposalStatus"
+      required:
+        - status
+
+    GenerateProposalContentBody:
+      type: object
+      properties:
+        section:
+          type: string
+          enum:
+            - executiveSummary
+            - understanding
+            - approach
+            - timelinePlan
+            - investment
+            - whyUs
+            - nextSteps
+            - all
+        additionalContext:
+          type: string
+          nullable: true
+      required:
+        - section
+
+    DashboardStats:
+      type: object
+      properties:
+        totalProposals:
+          type: integer
+        draftCount:
+          type: integer
+        sentCount:
+          type: integer
+        acceptedCount:
+          type: integer
+        declinedCount:
+          type: integer
+        winRate:
+          type: number
+          format: float
+      required:
+        - totalProposals
+        - draftCount
+        - sentCount
+        - acceptedCount
+        - declinedCount
+        - winRate
