@@ -1,0 +1,219 @@
+
+
+#1 - ProposAI — Phase 1: Core MVP
+What & Why
+Build the lean, launchable MVP of ProposAI — an AI-powered proposal generator positioned as: "Close more deals using proposals that learn what works."
+
+The goal is a working product in 3–5 days. Ship fast, get real users, validate before building more.
+
+Zero-Cost Stack
+Database: Neon (serverless PostgreSQL) — @neondatabase/serverless driver + Drizzle ORM
+Auth: Clerk (free tier)
+AI: OpenAI gpt-4o via Replit AI Integrations (no user API key needed)
+Hosting: Vercel (free Hobby tier) — static frontend + serverless API
+MVP scope only — skip these for now:
+Referrals, analytics charts, PDF export
+Voice training / AI voice context
+Paywall / billing
+Proposal scoring
+Follow-up generator
+Done looks like
+Public landing page with clear positioning ("Close more deals"), pricing section, and "Start Free" CTA — fully SEO-optimised
+Users sign up / log in with Clerk
+Authenticated users can create a new proposal: enter client name + paste a client brief + pick a niche (Web Design or Marketing Agency) → click Generate → receive a full structured proposal in under 10 seconds
+Generated proposal has 7 sections: Executive Summary, Understanding Your Needs, Our Approach, Timeline, Investment, Why Us, Next Steps
+Proposals are saved and listed on the Dashboard with status badges: Draft, Sent, Won, Lost
+Users can open a proposal, edit the text, change its status (Won/Lost/Sent), and enter a deal value
+Proposals can be deleted
+The app is fully responsive (mobile-friendly)
+No mocked data — all API calls hit real backend endpoints backed by Neon
+Out of scope (later phases)
+Voice training (Phase 2)
+Analytics dashboard (Phase 2)
+Paywall / upgrade screen (Phase 3)
+Referral system (Phase 4)
+Proposal scoring / win probability (Phase 4)
+Follow-up generator (Phase 4)
+Top Performers Library (Phase 4)
+PDF export (Phase 4)
+Stripe payments (future)
+Tasks
+Database schema (Neon) — Switch lib/db to use @neondatabase/serverless driver. Define tables: users (clerkId, email, name, createdAt), proposals (id, userId, clientName, clientBrief, niche, generatedContent, status enum[draft/sent/won/lost], dealValue, createdAt, updatedAt). Run drizzle-kit push against Neon.
+
+OpenAPI spec + codegen — Write the OpenAPI spec for: list proposals, create proposal, generate proposal (AI), get proposal by ID, update proposal (content + status + dealValue), delete proposal, health check. Run codegen to produce React Query hooks and Zod schemas.
+
+Backend — Proposals API — Implement Express route handlers for all proposal endpoints. The generate endpoint calls OpenAI gpt-4o via Replit AI Integrations with a structured prompt: system role as expert proposal writer, client brief + niche as input, returns 7-section structured proposal text. Use Clerk middleware to protect all routes. Sync Clerk user to users table on first request.
+
+Clerk auth setup — Add Clerk middleware to the Express API (protect all routes except health). On the frontend, set up ClerkProvider, sign-in and sign-up pages at /sign-in and /sign-up, and protect all dashboard routes. Redirect unauthenticated users to sign-in.
+
+Frontend — Landing page (SEO-optimised) — Build a compelling animated marketing page for ProposAI:
+
+Positioning headline: "Close More Deals With Proposals That Learn What Works"
+Subheadline and feature highlights: AI-generated proposals in 3 minutes, tracks your win rate, learns your style
+Pricing section: Free (3 proposals), Starter ₹999/month (20 proposals), Growth ₹1999/month (unlimited + analytics)
+Testimonials section (realistic placeholders for now)
+CTA footer ("Start Free — No Credit Card Required")
+Rich scroll animations, no emojis
+SEO: <title> "ProposAI — AI Proposal Generator for Agencies & Freelancers", meta description "Generate winning client proposals in under 3 minutes with AI. ProposAI helps agencies and freelancers close more deals with smarter, faster proposals.", Open Graph tags, Twitter Card tags, canonical URL, JSON-LD SoftwareApplication structured data, robots.txt, sitemap.xml, semantic HTML (h1/h2/h3 hierarchy, main/section/nav landmarks), alt text on all images
+Primary keywords woven naturally: "AI proposal generator", "proposal generator for agencies", "freelancer proposal tool", "business proposal software", "win more clients", "automated proposal writing"
+Frontend — Dashboard & Proposal UI — Build the authenticated app shell with sidebar navigation. Pages:
+
+Dashboard: list all proposals with search + filter by status, stats strip (total proposals, won count, lost count), "New Proposal" button
+New Proposal: form with client name, client brief (textarea), niche selector (Web Design / Marketing Agency), Generate button, output display with all 7 sections
+Proposal Detail/Editor: view + edit generated content, status toggle (Draft/Sent/Won/Lost), deal value input (₹), delete button
+All pages have a <title> tag (e.g. "Dashboard — ProposAI")
+Use all generated API hooks from @workspace/api-client-react
+No emojis anywhere in the UI
+Vercel deployment config — Add vercel.json to the react-vite artifact for SPA routing. Add vercel.json to the api-server for serverless function wrapping via @vercel/node. Update replit.md with environment variables required in Vercel dashboard: DATABASE_URL (Neon), CLERK_SECRET_KEY, VITE_CLERK_PUBLISHABLE_KEY, and Replit AI key.
+
+Relevant files
+lib/api-spec/openapi.yaml
+lib/db/src/schema/index.ts
+lib/db/drizzle.config.ts
+lib/db/package.json
+artifacts/api-server/src/app.ts
+artifacts/api-server/src/routes/index.ts
+artifacts/api-server/src/routes/health.ts
+artifacts/api-server/package.json
+lib/api-client-react/src/generated/api.ts
+lib/api-client-react/src/generated/api.schemas.ts
+pnpm-workspace.yaml
+replit.md
+.local/skills/clerk-auth/SKILL.md
+.local/skills/ai-integrations-openai/SKILL.md
+.local/skills/react-vite/SKILL.md
+.local/skills/database/SKILL.md
+
+
+
+
+
+
+
+
+
+
+
+
+#2 - ProposAI — Phase 2: Differentiation Layer
+What & Why
+Add the features that make ProposAI a product, not just a tool. Voice training teaches the AI the user's writing style from their past winning proposals. Basic analytics show win rate and deal performance so users can see the ROI of using the product. Client Type Memory makes the AI smarter over time by learning which tone and pricing style works per client type.
+
+Depends on Phase 1 being live with real users and proposals in the database.
+
+Done looks like
+Voice Training page: users can drag-and-drop or upload past proposal files (PDF or plain text), files are parsed and stored, and future AI generations automatically use this context to match the user's voice and structure
+Client Type Memory: when creating a proposal, users can tag the client type (Startup, Agency, Local Business, Enterprise) — the AI uses this tag to adjust tone and pricing positioning
+Basic Analytics page: shows win rate %, total proposals, won/lost counts, average deal value, and a breakdown by niche — all calculated from real data, no charts library required (clean stat cards are fine)
+Top Performers Library: a section on the Analytics page showing the user's own top 3 winning proposals (highest deal value proposals marked Won), so they can revisit what worked
+The proposal generation prompt now injects voice document context and client type into the system prompt
+Out of scope
+Proposal scoring / win probability (Phase 4)
+Paywall (Phase 3)
+Follow-up generator (Phase 4)
+Tasks
+Voice document DB + API — Add voiceDocuments table (id, userId, fileName, extractedText, createdAt) to the Drizzle schema and push to Neon. Add OpenAPI endpoints: upload voice document (multipart), list voice documents, delete voice document. Implement the route handlers — parse text from uploaded file (PDF via pdf-parse or plain text), store in DB. Add to codegen.
+
+Client type field — Add clientType column (enum: startup/agency/local/enterprise) to the proposals table. Update the create + update proposal API to accept clientType. Update OpenAPI spec and regenerate. Update the New Proposal frontend form to include a client type selector.
+
+Enhanced AI prompt — Update the generate proposal route to: (1) fetch the user's voice documents from DB and inject as "Here are past winning proposals to match in style and tone:", (2) inject clientType-specific guidance into the system prompt (e.g. startups: conversational and ROI-focused; agencies: professional and process-focused), (3) keep the same 7-section output structure.
+
+Analytics API + UI — Add an analytics summary API endpoint that returns: winRate, totalProposals, wonCount, lostCount, sentCount, avgDealValue, proposalsByNiche (array). Add to OpenAPI and regenerate. Build the Analytics page in the frontend using the generated hook — display as clean stat cards. Include a Top Performers section showing the user's top 3 Won proposals by deal value.
+
+Voice Training UI — Build the Voice Training page: drag-and-drop file upload area (accepts .pdf and .txt), list of uploaded documents with filename + upload date + delete button. Use the generated API hooks. Show a tip: "Upload 3+ past winning proposals for best results."
+
+Relevant files
+lib/api-spec/openapi.yaml
+lib/db/src/schema/index.ts
+artifacts/api-server/src/routes/index.ts
+lib/api-client-react/src/generated/api.ts
+.local/skills/ai-integrations-openai/SKILL.md
+Dependencies
+ProposAI — Phase 1: Core MVP
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#3 - ProposAI — Phase 3: Paywall & Monetisation
+What & Why
+Add a soft paywall so the product can start generating revenue. Free users get 3 proposals total, then hit an upgrade screen. No Stripe integration yet — just gate the feature and show the pricing. This validates willingness to pay before building billing infrastructure.
+
+Depends on Phase 2 being complete.
+
+Done looks like
+Free users can generate up to 3 proposals total — on their 4th attempt, they see an upgrade screen explaining the pricing tiers (Free → Starter ₹999/mo → Growth ₹1999/mo)
+The upgrade screen is compelling, not generic — shows what they'll unlock (unlimited proposals, analytics, voice training) and has a "Coming Soon — Join Waitlist" CTA that captures their email for when Stripe goes live
+A usage indicator on the Dashboard shows "X of 3 free proposals used" for free users
+The API enforces the limit server-side (not just client-side) — attempting to generate beyond the limit returns a 403 with a clear message
+Users on Starter or Growth tiers (initially set manually in the DB for testing) bypass the limit and get full access
+The pricing displayed is consistent across the landing page and the upgrade screen
+Out of scope
+Actual Stripe payment processing (future task)
+Automatic tier upgrades — tiers are set manually in DB for now
+Tasks
+User tier field — Add tier column (enum: free/starter/growth, default: free) and proposalCount column to the users table. Push schema to Neon. Update the user sync logic to initialise these fields on first sign-in.
+
+Paywall enforcement — On the generate proposal API route, check the user's tier and proposalCount. If tier is 'free' and proposalCount >= 3, return HTTP 403 with { error: "limit_reached", message: "Upgrade to generate more proposals" }. On successful generation, increment proposalCount. Add the tier and proposalCount to the user info API response.
+
+Upgrade screen + usage indicator — On the frontend, intercept 403 responses from the generate endpoint and show a full-screen upgrade modal with pricing tiers, feature comparison, and a "Join Waitlist" CTA (captures email to localStorage or a simple API endpoint). Add a usage bar to the Dashboard ("2 of 3 free proposals used") visible only to free-tier users. Update the landing page pricing section to be consistent with the upgrade screen.
+
+Relevant files
+lib/db/src/schema/index.ts
+artifacts/api-server/src/routes/index.ts
+lib/api-spec/openapi.yaml
+lib/api-client-react/src/generated/api.ts
+Dependencies
+ProposAI — Phase 2: Voice Training & Analytics
+
+#4 - ProposAI — Phase 4: Growth Features
+What & Why
+Add the high-retention features that create daily usage habits and viral growth. Proposal Scoring tells users before they send whether their proposal is strong. The Follow-Up Generator automates one of the most annoying parts of sales. Referrals create word-of-mouth growth. Together these turn ProposAI from a useful tool into a system users depend on.
+
+Depends on Phase 3 being complete.
+
+Done looks like
+Proposal Scoring: before sending a proposal, users can click "Score My Proposal" — the AI analyses the draft and returns: win probability % (0–100), a rating for each of the 7 sections (Strong / Needs Work / Weak), specific improvement suggestions for weak sections, and a pricing feedback note. The score is displayed as a visual report on the proposal detail page.
+Follow-Up Generator: when a proposal is marked as Sent, a "Generate Follow-Ups" button appears. Clicking it produces 3 follow-up messages (Day 2, Day 5, Day 10) in the user's tone — these are displayed and can be copied. If voice documents are uploaded, the follow-ups match the user's style.
+Top Performers Library enhancement: each winning proposal now shows its score alongside deal value, so users can correlate score with outcome.
+Referral system: every user has a unique referral code (generated on account creation). Sharing the link (proposai.com/r/{code}) gives the referred user 1 extra free proposal. The referrer earns 1 month of Starter access for every 3 successful referrals. Referral page shows: referral link with copy button, count of successful referrals, credits earned.
+Referral tracking: a referrals table tracks referrer + referred user + credit granted. The referral link stores the code in a cookie on landing; on sign-up, the code is read and the referral is recorded.
+Out of scope
+Stripe billing (future task)
+Email delivery of follow-ups (future task)
+Team/multi-seat management (future task)
+Tasks
+Referral DB + API — Add referralCode (unique, generated on user creation) to the users table. Add referrals table (id, referrerId, referredUserId, creditGranted, createdAt). Add API endpoints: get referral info (code, referral count, credits earned). Update user creation to auto-generate a referral code. Add referral code reading on sign-up flow (cookie-based). Update OpenAPI spec and regenerate.
+
+Proposal Scoring API — Add a POST /proposals/:id/score endpoint. It calls OpenAI gpt-4o with the proposal content and asks for: win probability (0–100), per-section rating (Strong/Needs Work/Weak), improvement suggestions, and pricing feedback. Returns a structured JSON score object. Store the latest score on the proposal record (scoreData JSONB column). Add to OpenAPI spec and regenerate.
+
+Follow-Up Generator API — Add a POST /proposals/:id/followups endpoint. It calls OpenAI with the proposal content + user voice documents + client type and generates 3 follow-up messages (Day 2/5/10). Returns an array of { day, message } objects. Store as JSONB on the proposal record. Add to OpenAPI spec and regenerate.
+
+Referral UI — Build the Referrals page: referral link display with one-click copy, count of successful referrals, credits earned, explanation of the reward ("Refer 3 friends → 1 month Starter free"). Add referral code capture on the landing page (read ?ref= query param, store in cookie, pass to Clerk sign-up flow).
+
+Proposal Score UI — Add a "Score My Proposal" button to the Proposal Detail page. On click, call the score API and display a score report: overall win probability as a large number, per-section badges (Strong/Needs Work/Weak), improvement tips as a bulleted list, and pricing feedback. Show a loading state while the AI processes.
+
+Follow-Up Generator UI — On the Proposal Detail page, after a proposal is marked Sent, show a "Generate Follow-Ups" section. On click, call the follow-ups API and display the 3 messages in copyable text boxes labelled "Day 2", "Day 5", "Day 10".
+
+Relevant files
+lib/db/src/schema/index.ts
+lib/api-spec/openapi.yaml
+artifacts/api-server/src/routes/index.ts
+lib/api-client-react/src/generated/api.ts
+.local/skills/ai-integrations-openai/SKILL.md
+Dependencies
+ProposAI — Phase 3: Paywall & Monetisation
