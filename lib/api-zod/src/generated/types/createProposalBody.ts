@@ -5,13 +5,10 @@
  * ProposAI API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProposalNiche } from "./proposalNiche";
 
 export interface CreateProposalBody {
   clientName: string;
-  clientEmail?: string | null;
-  projectTitle: string;
-  industry?: string | null;
-  projectDescription?: string | null;
-  budget?: string | null;
-  timeline?: string | null;
+  clientBrief: string;
+  niche: ProposalNiche;
 }

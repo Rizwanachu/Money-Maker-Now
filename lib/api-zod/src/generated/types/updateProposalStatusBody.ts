@@ -9,4 +9,5 @@ import type { ProposalStatus } from "./proposalStatus";
 
 export interface UpdateProposalStatusBody {
   status: ProposalStatus;
+  dealValue?: string | null;
 }

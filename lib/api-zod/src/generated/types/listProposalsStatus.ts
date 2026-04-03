@@ -12,6 +12,6 @@ export type ListProposalsStatus =
 export const ListProposalsStatus = {
   draft: "draft",
   sent: "sent",
-  accepted: "accepted",
-  declined: "declined",
+  won: "won",
+  lost: "lost",
 } as const;

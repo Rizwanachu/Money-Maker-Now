@@ -19,7 +19,6 @@ import type {
 import type {
   CreateProposalBody,
   DashboardStats,
-  GenerateProposalContentBody,
   GetRecentProposalsParams,
   HealthStatus,
   ListProposalsParams,
@@ -553,7 +552,7 @@ export const useDeleteProposal = <
 };
 
 /**
- * @summary Generate AI content for a proposal section
+ * @summary Generate AI content for all 7 proposal sections (streams SSE)
  */
 export const getGenerateProposalContentUrl = (id: number) => {
   return `/api/proposals/${id}/generate`;
@@ -561,14 +560,11 @@ export const getGenerateProposalContentUrl = (id: number) => {
 
 export const generateProposalContent = async (
   id: number,
-  generateProposalContentBody: GenerateProposalContentBody,
   options?: RequestInit,
 ): Promise<void> => {
   return customFetch<void>(getGenerateProposalContentUrl(id), {
     ...options,
     method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(generateProposalContentBody),
   });
 };
 
@@ -579,14 +575,14 @@ export const getGenerateProposalContentMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof generateProposalContent>>,
     TError,
-    { id: number; data: BodyType<GenerateProposalContentBody> },
+    { id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof generateProposalContent>>,
   TError,
-  { id: number; data: BodyType<GenerateProposalContentBody> },
+  { id: number },
   TContext
 > => {
   const mutationKey = ["generateProposalContent"];
@@ -600,11 +596,11 @@ export const getGenerateProposalContentMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof generateProposalContent>>,
-    { id: number; data: BodyType<GenerateProposalContentBody> }
+    { id: number }
   > = (props) => {
-    const { id, data } = props ?? {};
+    const { id } = props ?? {};
 
-    return generateProposalContent(id, data, requestOptions);
+    return generateProposalContent(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -613,12 +609,11 @@ export const getGenerateProposalContentMutationOptions = <
 export type GenerateProposalContentMutationResult = NonNullable<
   Awaited<ReturnType<typeof generateProposalContent>>
 >;
-export type GenerateProposalContentMutationBody =
-  BodyType<GenerateProposalContentBody>;
+
 export type GenerateProposalContentMutationError = ErrorType<void>;
 
 /**
- * @summary Generate AI content for a proposal section
+ * @summary Generate AI content for all 7 proposal sections (streams SSE)
  */
 export const useGenerateProposalContent = <
   TError = ErrorType<void>,
@@ -627,101 +622,17 @@ export const useGenerateProposalContent = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof generateProposalContent>>,
     TError,
-    { id: number; data: BodyType<GenerateProposalContentBody> },
+    { id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof generateProposalContent>>,
   TError,
-  { id: number; data: BodyType<GenerateProposalContentBody> },
+  { id: number },
   TContext
 > => {
   return useMutation(getGenerateProposalContentMutationOptions(options));
-};
-
-/**
- * @summary Duplicate an existing proposal
- */
-export const getDuplicateProposalUrl = (id: number) => {
-  return `/api/proposals/${id}/duplicate`;
-};
-
-export const duplicateProposal = async (
-  id: number,
-  options?: RequestInit,
-): Promise<Proposal> => {
-  return customFetch<Proposal>(getDuplicateProposalUrl(id), {
-    ...options,
-    method: "POST",
-  });
-};
-
-export const getDuplicateProposalMutationOptions = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof duplicateProposal>>,
-    TError,
-    { id: number },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof duplicateProposal>>,
-  TError,
-  { id: number },
-  TContext
-> => {
-  const mutationKey = ["duplicateProposal"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof duplicateProposal>>,
-    { id: number }
-  > = (props) => {
-    const { id } = props ?? {};
-
-    return duplicateProposal(id, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type DuplicateProposalMutationResult = NonNullable<
-  Awaited<ReturnType<typeof duplicateProposal>>
->;
-
-export type DuplicateProposalMutationError = ErrorType<void>;
-
-/**
- * @summary Duplicate an existing proposal
- */
-export const useDuplicateProposal = <
-  TError = ErrorType<void>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof duplicateProposal>>,
-    TError,
-    { id: number },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof duplicateProposal>>,
-  TError,
-  { id: number },
-  TContext
-> => {
-  return useMutation(getDuplicateProposalMutationOptions(options));
 };
 
 /**

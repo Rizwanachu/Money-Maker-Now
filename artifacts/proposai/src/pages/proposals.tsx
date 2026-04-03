@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { 
   useListProposals, 
   getListProposalsQueryKey,
-  useDuplicateProposal,
   useDeleteProposal
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -34,19 +33,20 @@ import {
 import { 
   Plus, 
   Search, 
-  MoreVertical, 
-  Copy, 
+  MoreVertical,
   Trash2, 
   ExternalLink,
-  Edit2
+  Edit2,
+  FileText
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
-type ProposalStatus = "draft" | "sent" | "accepted" | "declined" | "all";
+type ProposalStatusFilter = "draft" | "sent" | "won" | "lost" | "all";
 
 export default function ProposalsPage() {
-  const [statusFilter, setStatusFilter] = useState<ProposalStatus>("all");
+  useEffect(() => { document.title = "Proposals — ProposAI"; }, []);
+  const [statusFilter, setStatusFilter] = useState<ProposalStatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -58,18 +58,6 @@ export default function ProposalsPage() {
     },
     { query: { queryKey: getListProposalsQueryKey({ status: statusFilter !== "all" ? statusFilter as any : undefined, limit: 100 }) } }
   );
-
-  const duplicateMutation = useDuplicateProposal({
-    mutation: {
-      onSuccess: () => {
-        toast({ title: "Proposal duplicated successfully" });
-        queryClient.invalidateQueries({ queryKey: getListProposalsQueryKey() });
-      },
-      onError: () => {
-        toast({ title: "Failed to duplicate proposal", variant: "destructive" });
-      }
-    }
-  });
 
   const deleteMutation = useDeleteProposal({
     mutation: {
@@ -83,24 +71,21 @@ export default function ProposalsPage() {
     }
   });
 
-  const handleDuplicate = (id: number) => {
-    duplicateMutation.mutate({ id });
-  };
-
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this proposal?")) {
       deleteMutation.mutate({ id });
     }
   };
 
-  const filteredProposals = data?.proposals?.filter(p => {
+  const proposals = data?.proposals ?? [];
+  const filteredProposals = proposals.filter(p => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      p.projectTitle.toLowerCase().includes(query) ||
-      p.clientName.toLowerCase().includes(query)
+      p.clientName.toLowerCase().includes(query) ||
+      (p.niche || "").toLowerCase().includes(query)
     );
-  }) || [];
+  });
 
   return (
     <AppLayout>
@@ -121,7 +106,7 @@ export default function ProposalsPage() {
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by client or project..."
+              placeholder="Search by client or niche..."
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -129,7 +114,7 @@ export default function ProposalsPage() {
           </div>
           <Select 
             value={statusFilter} 
-            onValueChange={(val) => setStatusFilter(val as ProposalStatus)}
+            onValueChange={(val) => setStatusFilter(val as ProposalStatusFilter)}
           >
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
@@ -138,8 +123,8 @@ export default function ProposalsPage() {
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
-              <SelectItem value="declined">Declined</SelectItem>
+              <SelectItem value="won">Won</SelectItem>
+              <SelectItem value="lost">Lost</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -186,12 +171,12 @@ export default function ProposalsPage() {
                   <div className="flex justify-between items-start pr-6">
                     <CardTitle className="text-lg font-bold leading-tight">
                       <Link href={`/proposals/${proposal.id}`} className="hover:underline">
-                        {proposal.projectTitle}
+                        {proposal.clientName}
                       </Link>
                     </CardTitle>
                   </div>
                   <div className="text-sm text-muted-foreground mt-1 font-medium">
-                    {proposal.clientName}
+                    {proposal.niche}
                   </div>
                   
                   <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -209,12 +194,9 @@ export default function ProposalsPage() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/proposals/${proposal.id}/preview`} target="_blank">
+                          <Link href={`/proposals/${proposal.id}/preview`}>
                             <ExternalLink className="mr-2 h-4 w-4" /> Preview
                           </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicate(proposal.id)}>
-                          <Copy className="mr-2 h-4 w-4" /> Duplicate
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
@@ -229,24 +211,22 @@ export default function ProposalsPage() {
                 </CardHeader>
                 <CardContent className="flex-1 mt-2">
                   <div className="text-xs text-muted-foreground line-clamp-2 mb-4">
-                    {proposal.projectDescription || "No description provided."}
+                    {proposal.clientBrief || "No brief provided."}
                   </div>
-                  <div className="flex items-center gap-4 text-sm font-medium">
-                    {proposal.budget && (
-                      <div>
-                        <span className="text-muted-foreground mr-1">Budget:</span>
-                        {proposal.budget}
-                      </div>
-                    )}
-                  </div>
+                  {proposal.dealValue && (
+                    <div className="flex items-center gap-4 text-sm font-medium">
+                      <span className="text-muted-foreground mr-1">Deal Value:</span>
+                      {proposal.dealValue}
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter className="pt-4 border-t flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 mt-auto rounded-b-xl">
                   <span className="text-xs text-muted-foreground font-medium">
                     {format(new Date(proposal.updatedAt), "MMM d, yyyy")}
                   </span>
                   <div className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize
-                    ${proposal.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                      proposal.status === 'declined' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                    ${proposal.status === 'won' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                      proposal.status === 'lost' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
                       proposal.status === 'sent' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
                       'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
                     }

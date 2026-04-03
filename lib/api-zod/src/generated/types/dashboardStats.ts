@@ -10,7 +10,7 @@ export interface DashboardStats {
   totalProposals: number;
   draftCount: number;
   sentCount: number;
-  acceptedCount: number;
-  declinedCount: number;
+  wonCount: number;
+  lostCount: number;
   winRate: number;
 }

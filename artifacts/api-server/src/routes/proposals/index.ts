@@ -1,26 +1,24 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { proposalsTable } from "@workspace/db";
-import { eq, and, desc, count, ilike } from "drizzle-orm";
+import { proposalsTable, usersTable } from "@workspace/db";
+import { eq, and, desc, count } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import {
   CreateProposalBody,
   UpdateProposalBody,
   UpdateProposalStatusBody,
-  GenerateProposalContentBody,
   ListProposalsQueryParams,
   GetProposalParams,
   UpdateProposalParams,
   DeleteProposalParams,
   GenerateProposalContentParams,
-  DuplicateProposalParams,
   UpdateProposalStatusParams,
 } from "@workspace/api-zod";
 
 const router = Router();
 
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const auth = getAuth(req);
   const userId = auth?.sessionClaims?.userId || auth?.userId;
   if (!userId) {
@@ -28,6 +26,19 @@ function requireAuth(req: any, res: any, next: any) {
     return;
   }
   req.userId = userId;
+
+  const clerkUser = auth?.sessionClaims;
+  if (clerkUser) {
+    await db
+      .insert(usersTable)
+      .values({
+        clerkId: userId,
+        email: (clerkUser.email as string) || "",
+        name: ((clerkUser.firstName as string) || "") + " " + ((clerkUser.lastName as string) || ""),
+      })
+      .onConflictDoNothing();
+  }
+
   next();
 }
 
@@ -40,7 +51,7 @@ router.get("/", requireAuth, async (req: any, res: any): Promise<void> => {
 
   const { status, limit = 20, offset = 0 } = parseResult.data;
 
-  const conditions = [eq(proposalsTable.userId, req.userId)];
+  const conditions: any[] = [eq(proposalsTable.userId, req.userId)];
   if (status) {
     conditions.push(eq(proposalsTable.status, status));
   }
@@ -78,12 +89,8 @@ router.post("/", requireAuth, async (req: any, res: any): Promise<void> => {
     .values({
       userId: req.userId,
       clientName: data.clientName,
-      clientEmail: data.clientEmail ?? null,
-      projectTitle: data.projectTitle,
-      industry: data.industry ?? null,
-      projectDescription: data.projectDescription ?? null,
-      budget: data.budget ?? null,
-      timeline: data.timeline ?? null,
+      clientBrief: data.clientBrief,
+      niche: data.niche,
       status: "draft",
     })
     .returning();
@@ -149,12 +156,9 @@ router.put("/:id", requireAuth, async (req: any, res: any): Promise<void> => {
     .update(proposalsTable)
     .set({
       ...(data.clientName !== undefined && { clientName: data.clientName }),
-      ...(data.clientEmail !== undefined && { clientEmail: data.clientEmail }),
-      ...(data.projectTitle !== undefined && { projectTitle: data.projectTitle }),
-      ...(data.industry !== undefined && { industry: data.industry }),
-      ...(data.projectDescription !== undefined && { projectDescription: data.projectDescription }),
-      ...(data.budget !== undefined && { budget: data.budget }),
-      ...(data.timeline !== undefined && { timeline: data.timeline }),
+      ...(data.clientBrief !== undefined && { clientBrief: data.clientBrief }),
+      ...(data.niche !== undefined && { niche: data.niche }),
+      ...(data.dealValue !== undefined && { dealValue: data.dealValue }),
       ...(data.executiveSummary !== undefined && { executiveSummary: data.executiveSummary }),
       ...(data.understanding !== undefined && { understanding: data.understanding }),
       ...(data.approach !== undefined && { approach: data.approach }),
@@ -207,12 +211,6 @@ router.post("/:id/generate", requireAuth, async (req: any, res: any): Promise<vo
     return;
   }
 
-  const bodyResult = GenerateProposalContentBody.safeParse(req.body);
-  if (!bodyResult.success) {
-    res.status(400).json({ error: "Invalid request body" });
-    return;
-  }
-
   const [proposal] = await db
     .select()
     .from(proposalsTable)
@@ -228,190 +226,133 @@ router.post("/:id/generate", requireAuth, async (req: any, res: any): Promise<vo
     return;
   }
 
-  const { section, additionalContext } = bodyResult.data;
+  const systemPrompt = `You are an expert proposal writer for agencies and freelancers. Write compelling, professional proposal content that wins deals. Be specific, persuasive, and client-focused. Write in a confident, professional tone. Do not use emojis.`;
 
-  const sectionLabels: Record<string, string> = {
-    executiveSummary: "Executive Summary",
-    understanding: "Understanding Your Needs",
-    approach: "Our Approach",
-    timelinePlan: "Timeline",
-    investment: "Investment",
-    whyUs: "Why Us",
-    nextSteps: "Next Steps",
-  };
+  const userPrompt = `Write a complete, winning proposal for the following:
 
-  const proposalContext = `
 Client: ${proposal.clientName}
-Project: ${proposal.projectTitle}
-Industry: ${proposal.industry || "Not specified"}
-Project Description: ${proposal.projectDescription || "Not specified"}
-Budget: ${proposal.budget || "Not specified"}
-Timeline: ${proposal.timeline || "Not specified"}
-${additionalContext ? `Additional Context: ${additionalContext}` : ""}
-`.trim();
+Niche: ${proposal.niche}
+Client Brief: ${proposal.clientBrief}
 
-  const generateSection = async (sectionName: string, label: string) => {
-    const systemPrompt = `You are an expert proposal writer for agencies, consultants, and freelancers. Write compelling, professional proposal content that wins deals. Be specific, persuasive, and client-focused. Write in a confident, professional tone. Do not use emojis.`;
+Generate all 7 sections of the proposal. For EACH section, output it in this exact format:
+[SECTION:executiveSummary]
+(section content here)
+[/SECTION]
 
-    const userPrompt = `Write the "${label}" section for a professional proposal with the following context:
+[SECTION:understanding]
+(section content here)
+[/SECTION]
 
-${proposalContext}
+[SECTION:approach]
+(section content here)
+[/SECTION]
 
-Write 2-4 paragraphs of polished, persuasive content for just this section. Be specific to the project details provided. Do not include section headers or titles.`;
+[SECTION:timelinePlan]
+(section content here)
+[/SECTION]
 
-    return openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 8192,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      stream: true,
-    });
-  };
+[SECTION:investment]
+(section content here)
+[/SECTION]
+
+[SECTION:whyUs]
+(section content here)
+[/SECTION]
+
+[SECTION:nextSteps]
+(section content here)
+[/SECTION]
+
+Write 2-4 paragraphs per section. Be specific to the client brief and niche provided. Do not include the section header labels in the content itself.`;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  if (section === "all") {
-    const sections = [
-      "executiveSummary",
-      "understanding",
-      "approach",
-      "timelinePlan",
-      "investment",
-      "whyUs",
-      "nextSteps",
-    ] as const;
+  const sections: Record<string, string> = {};
+  let currentSection = "";
+  let currentContent = "";
+  let buffer = "";
 
-    const updates: Record<string, string> = {};
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4o",
+    max_completion_tokens: 8192,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    stream: true,
+  });
 
-    for (const s of sections) {
-      const label = sectionLabels[s];
-      let content = "";
+  for await (const chunk of stream) {
+    const text = chunk.choices[0]?.delta?.content;
+    if (!text) continue;
 
-      res.write(`data: ${JSON.stringify({ section: s, type: "start" })}\n\n`);
+    buffer += text;
 
-      const stream = await generateSection(s, label);
-      for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content;
-        if (text) {
-          content += text;
-          res.write(`data: ${JSON.stringify({ section: s, content: text })}\n\n`);
+    const startTagRegex = /\[SECTION:(\w+)\]/g;
+    const endTag = "[/SECTION]";
+
+    while (true) {
+      if (!currentSection) {
+        const match = startTagRegex.exec(buffer);
+        if (!match) break;
+
+        currentSection = match[1];
+        buffer = buffer.slice(match.index + match[0].length);
+
+        res.write(`data: ${JSON.stringify({ type: "section_start", section: currentSection })}\n\n`);
+      } else {
+        const endIdx = buffer.indexOf(endTag);
+        if (endIdx !== -1) {
+          const sectionChunk = buffer.slice(0, endIdx).trim();
+          currentContent += sectionChunk;
+
+          if (sectionChunk) {
+            res.write(`data: ${JSON.stringify({ type: "content", section: currentSection, content: sectionChunk })}\n\n`);
+          }
+
+          sections[currentSection] = currentContent;
+          res.write(`data: ${JSON.stringify({ type: "section_done", section: currentSection })}\n\n`);
+
+          buffer = buffer.slice(endIdx + endTag.length);
+          currentSection = "";
+          currentContent = "";
+          startTagRegex.lastIndex = 0;
+        } else {
+          const safeChunk = buffer.slice(0, -endTag.length);
+          if (safeChunk) {
+            currentContent += safeChunk;
+            res.write(`data: ${JSON.stringify({ type: "content", section: currentSection, content: safeChunk })}\n\n`);
+            buffer = buffer.slice(safeChunk.length);
+          }
+          break;
         }
       }
-
-      updates[s] = content;
-      res.write(`data: ${JSON.stringify({ section: s, type: "done" })}\n\n`);
-    }
-
-    await db
-      .update(proposalsTable)
-      .set({
-        executiveSummary: updates.executiveSummary,
-        understanding: updates.understanding,
-        approach: updates.approach,
-        timelinePlan: updates.timelinePlan,
-        investment: updates.investment,
-        whyUs: updates.whyUs,
-        nextSteps: updates.nextSteps,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(proposalsTable.id, idResult.data.id),
-          eq(proposalsTable.userId, req.userId)
-        )
-      );
-  } else {
-    const label = sectionLabels[section] || section;
-    let fullContent = "";
-
-    const stream = await generateSection(section, label);
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content;
-      if (text) {
-        fullContent += text;
-        res.write(`data: ${JSON.stringify({ content: text })}\n\n`);
-      }
-    }
-
-    const fieldMap: Record<string, keyof typeof proposalsTable.$inferSelect> = {
-      executiveSummary: "executiveSummary",
-      understanding: "understanding",
-      approach: "approach",
-      timelinePlan: "timelinePlan",
-      investment: "investment",
-      whyUs: "whyUs",
-      nextSteps: "nextSteps",
-    };
-
-    if (fieldMap[section]) {
-      await db
-        .update(proposalsTable)
-        .set({
-          [fieldMap[section]]: fullContent,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(proposalsTable.id, idResult.data.id),
-            eq(proposalsTable.userId, req.userId)
-          )
-        );
     }
   }
 
-  res.write(`data: [DONE]\n\n`);
-  res.end();
-});
-
-router.post("/:id/duplicate", requireAuth, async (req: any, res: any): Promise<void> => {
-  const parseResult = DuplicateProposalParams.safeParse({ id: Number(req.params.id) });
-  if (!parseResult.success) {
-    res.status(400).json({ error: "Invalid proposal ID" });
-    return;
-  }
-
-  const [original] = await db
-    .select()
-    .from(proposalsTable)
+  await db
+    .update(proposalsTable)
+    .set({
+      executiveSummary: sections.executiveSummary || null,
+      understanding: sections.understanding || null,
+      approach: sections.approach || null,
+      timelinePlan: sections.timelinePlan || null,
+      investment: sections.investment || null,
+      whyUs: sections.whyUs || null,
+      nextSteps: sections.nextSteps || null,
+      updatedAt: new Date(),
+    })
     .where(
       and(
-        eq(proposalsTable.id, parseResult.data.id),
+        eq(proposalsTable.id, idResult.data.id),
         eq(proposalsTable.userId, req.userId)
       )
     );
 
-  if (!original) {
-    res.status(404).json({ error: "Proposal not found" });
-    return;
-  }
-
-  const [duplicate] = await db
-    .insert(proposalsTable)
-    .values({
-      userId: req.userId,
-      clientName: original.clientName,
-      clientEmail: original.clientEmail,
-      projectTitle: `${original.projectTitle} (Copy)`,
-      industry: original.industry,
-      projectDescription: original.projectDescription,
-      budget: original.budget,
-      timeline: original.timeline,
-      status: "draft",
-      executiveSummary: original.executiveSummary,
-      understanding: original.understanding,
-      approach: original.approach,
-      timelinePlan: original.timelinePlan,
-      investment: original.investment,
-      whyUs: original.whyUs,
-      nextSteps: original.nextSteps,
-    })
-    .returning();
-
-  res.status(201).json(duplicate);
+  res.write(`data: [DONE]\n\n`);
+  res.end();
 });
 
 router.patch("/:id/status", requireAuth, async (req: any, res: any): Promise<void> => {
@@ -446,6 +387,7 @@ router.patch("/:id/status", requireAuth, async (req: any, res: any): Promise<voi
     .update(proposalsTable)
     .set({
       status: bodyResult.data.status,
+      ...(bodyResult.data.dealValue !== undefined && { dealValue: bodyResult.data.dealValue }),
       updatedAt: new Date(),
     })
     .where(

@@ -39,7 +39,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [draft, sent, accepted, declined]
+            enum: [draft, sent, won, lost]
         - in: query
           name: limit
           schema:
@@ -150,45 +150,16 @@ paths:
     post:
       operationId: generateProposalContent
       tags: [proposals]
-      summary: Generate AI content for a proposal section
+      summary: Generate AI content for all 7 proposal sections (streams SSE)
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/GenerateProposalContentBody"
       responses:
         "200":
           description: Generated content (streamed as text/event-stream)
-        "401":
-          description: Unauthorized
-        "404":
-          description: Not found
-
-  /proposals/{id}/duplicate:
-    post:
-      operationId: duplicateProposal
-      tags: [proposals]
-      summary: Duplicate an existing proposal
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        "201":
-          description: Duplicated proposal
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Proposal"
         "401":
           description: Unauthorized
         "404":
@@ -273,7 +244,11 @@ components:
 
     ProposalStatus:
       type: string
-      enum: [draft, sent, accepted, declined]
+      enum: [draft, sent, won, lost]
+
+    ProposalNiche:
+      type: string
+      enum: ["Web Design", "Marketing Agency"]
 
     Proposal:
       type: object
@@ -284,25 +259,15 @@ components:
           type: string
         clientName:
           type: string
-        clientEmail:
+        clientBrief:
           type: string
-          nullable: true
-        projectTitle:
-          type: string
-        industry:
-          type: string
-          nullable: true
-        projectDescription:
-          type: string
-          nullable: true
-        budget:
-          type: string
-          nullable: true
-        timeline:
-          type: string
-          nullable: true
+        niche:
+          $ref: "#/components/schemas/ProposalNiche"
         status:
           $ref: "#/components/schemas/ProposalStatus"
+        dealValue:
+          type: string
+          nullable: true
         executiveSummary:
           type: string
           nullable: true
@@ -334,7 +299,8 @@ components:
         - id
         - userId
         - clientName
-        - projectTitle
+        - clientBrief
+        - niche
         - status
         - createdAt
         - updatedAt
@@ -357,47 +323,25 @@ components:
       properties:
         clientName:
           type: string
-        clientEmail:
+        clientBrief:
           type: string
-          nullable: true
-        projectTitle:
-          type: string
-        industry:
-          type: string
-          nullable: true
-        projectDescription:
-          type: string
-          nullable: true
-        budget:
-          type: string
-          nullable: true
-        timeline:
-          type: string
-          nullable: true
+        niche:
+          $ref: "#/components/schemas/ProposalNiche"
       required:
         - clientName
-        - projectTitle
+        - clientBrief
+        - niche
 
     UpdateProposalBody:
       type: object
       properties:
         clientName:
           type: string
-        clientEmail:
+        clientBrief:
           type: string
-          nullable: true
-        projectTitle:
-          type: string
-        industry:
-          type: string
-          nullable: true
-        projectDescription:
-          type: string
-          nullable: true
-        budget:
-          type: string
-          nullable: true
-        timeline:
+        niche:
+          $ref: "#/components/schemas/ProposalNiche"
+        dealValue:
           type: string
           nullable: true
         executiveSummary:
@@ -427,28 +371,11 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/ProposalStatus"
-      required:
-        - status
-
-    GenerateProposalContentBody:
-      type: object
-      properties:
-        section:
-          type: string
-          enum:
-            - executiveSummary
-            - understanding
-            - approach
-            - timelinePlan
-            - investment
-            - whyUs
-            - nextSteps
-            - all
-        additionalContext:
+        dealValue:
           type: string
           nullable: true
       required:
-        - section
+        - status
 
     DashboardStats:
       type: object
@@ -459,9 +386,9 @@ components:
           type: integer
         sentCount:
           type: integer
-        acceptedCount:
+        wonCount:
           type: integer
-        declinedCount:
+        lostCount:
           type: integer
         winRate:
           type: number
@@ -470,6 +397,6 @@ components:
         - totalProposals
         - draftCount
         - sentCount
-        - acceptedCount
-        - declinedCount
+        - wonCount
+        - lostCount
         - winRate

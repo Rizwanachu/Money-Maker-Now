@@ -47,7 +47,7 @@ export default function ProposalPreviewPage() {
             P
           </div>
           <h1 className="text-4xl sm:text-6xl font-bold text-slate-900 mb-6 leading-tight font-sans">
-            {proposal.projectTitle}
+            {proposal.niche} Proposal
           </h1>
           <p className="text-xl sm:text-2xl text-slate-600 mb-16">
             Prepared for {proposal.clientName}

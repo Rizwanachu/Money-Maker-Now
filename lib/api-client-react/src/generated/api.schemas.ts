@@ -15,21 +15,25 @@ export type ProposalStatus =
 export const ProposalStatus = {
   draft: "draft",
   sent: "sent",
-  accepted: "accepted",
-  declined: "declined",
+  won: "won",
+  lost: "lost",
+} as const;
+
+export type ProposalNiche = (typeof ProposalNiche)[keyof typeof ProposalNiche];
+
+export const ProposalNiche = {
+  Web_Design: "Web Design",
+  Marketing_Agency: "Marketing Agency",
 } as const;
 
 export interface Proposal {
   id: number;
   userId: string;
   clientName: string;
-  clientEmail?: string | null;
-  projectTitle: string;
-  industry?: string | null;
-  projectDescription?: string | null;
-  budget?: string | null;
-  timeline?: string | null;
+  clientBrief: string;
+  niche: ProposalNiche;
   status: ProposalStatus;
+  dealValue?: string | null;
   executiveSummary?: string | null;
   understanding?: string | null;
   approach?: string | null;
@@ -48,22 +52,15 @@ export interface ProposalList {
 
 export interface CreateProposalBody {
   clientName: string;
-  clientEmail?: string | null;
-  projectTitle: string;
-  industry?: string | null;
-  projectDescription?: string | null;
-  budget?: string | null;
-  timeline?: string | null;
+  clientBrief: string;
+  niche: ProposalNiche;
 }
 
 export interface UpdateProposalBody {
   clientName?: string;
-  clientEmail?: string | null;
-  projectTitle?: string;
-  industry?: string | null;
-  projectDescription?: string | null;
-  budget?: string | null;
-  timeline?: string | null;
+  clientBrief?: string;
+  niche?: ProposalNiche;
+  dealValue?: string | null;
   executiveSummary?: string | null;
   understanding?: string | null;
   approach?: string | null;
@@ -75,33 +72,15 @@ export interface UpdateProposalBody {
 
 export interface UpdateProposalStatusBody {
   status: ProposalStatus;
-}
-
-export type GenerateProposalContentBodySection =
-  (typeof GenerateProposalContentBodySection)[keyof typeof GenerateProposalContentBodySection];
-
-export const GenerateProposalContentBodySection = {
-  executiveSummary: "executiveSummary",
-  understanding: "understanding",
-  approach: "approach",
-  timelinePlan: "timelinePlan",
-  investment: "investment",
-  whyUs: "whyUs",
-  nextSteps: "nextSteps",
-  all: "all",
-} as const;
-
-export interface GenerateProposalContentBody {
-  section: GenerateProposalContentBodySection;
-  additionalContext?: string | null;
+  dealValue?: string | null;
 }
 
 export interface DashboardStats {
   totalProposals: number;
   draftCount: number;
   sentCount: number;
-  acceptedCount: number;
-  declinedCount: number;
+  wonCount: number;
+  lostCount: number;
   winRate: number;
 }
 
@@ -117,8 +96,8 @@ export type ListProposalsStatus =
 export const ListProposalsStatus = {
   draft: "draft",
   sent: "sent",
-  accepted: "accepted",
-  declined: "declined",
+  won: "won",
+  lost: "lost",
 } as const;
 
 export type GetRecentProposalsParams = {

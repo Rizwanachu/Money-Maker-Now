@@ -27,18 +27,18 @@ router.get("/stats", requireAuth, async (req: any, res: any): Promise<void> => {
   const total = proposals.length;
   const draftCount = proposals.filter((p) => p.status === "draft").length;
   const sentCount = proposals.filter((p) => p.status === "sent").length;
-  const acceptedCount = proposals.filter((p) => p.status === "accepted").length;
-  const declinedCount = proposals.filter((p) => p.status === "declined").length;
+  const wonCount = proposals.filter((p) => p.status === "won").length;
+  const lostCount = proposals.filter((p) => p.status === "lost").length;
 
-  const closedCount = acceptedCount + declinedCount;
-  const winRate = closedCount > 0 ? (acceptedCount / closedCount) * 100 : 0;
+  const closedCount = wonCount + lostCount;
+  const winRate = closedCount > 0 ? (wonCount / closedCount) * 100 : 0;
 
   res.json({
     totalProposals: total,
     draftCount,
     sentCount,
-    acceptedCount,
-    declinedCount,
+    wonCount,
+    lostCount,
     winRate: Math.round(winRate * 10) / 10,
   });
 });

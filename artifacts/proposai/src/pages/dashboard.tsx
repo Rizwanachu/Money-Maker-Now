@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useGetDashboardStats, getGetDashboardStatsQueryKey, useGetRecentProposals, getGetRecentProposalsQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 
 export default function DashboardPage() {
+  useEffect(() => { document.title = "Dashboard — ProposAI"; }, []);
+
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats({
     query: { queryKey: getGetDashboardStatsQueryKey() }
   });
@@ -14,6 +17,8 @@ export default function DashboardPage() {
   const { data: recent, isLoading: recentLoading } = useGetRecentProposals({ limit: 5 }, {
     query: { queryKey: getGetRecentProposalsQueryKey({ limit: 5 }) }
   });
+
+  const recentList = Array.isArray(recent) ? recent : [];
 
   return (
     <AppLayout>
@@ -66,11 +71,11 @@ export default function DashboardPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Accepted</CardTitle>
+                <CardTitle className="text-sm font-medium">Won</CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.acceptedCount}</div>
+                <div className="text-2xl font-bold">{stats.wonCount}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {stats.winRate.toFixed(1)}% win rate
                 </p>
@@ -78,11 +83,11 @@ export default function DashboardPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Declined</CardTitle>
+                <CardTitle className="text-sm font-medium">Lost</CardTitle>
                 <XCircle className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.declinedCount}</div>
+                <div className="text-2xl font-bold">{stats.lostCount}</div>
               </CardContent>
             </Card>
           </div>
@@ -108,7 +113,7 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : recent?.proposals?.length === 0 ? (
+              ) : recentList.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No proposals yet. Start by creating your first one.</p>
                   <Button variant="outline" className="mt-4" asChild>
@@ -117,14 +122,14 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {recent?.proposals?.map((proposal) => (
+                  {recentList.map((proposal) => (
                     <div key={proposal.id} className="flex items-center justify-between group">
                       <div className="flex flex-col gap-1">
                         <Link href={`/proposals/${proposal.id}`} className="font-medium hover:underline">
-                          {proposal.projectTitle}
+                          {proposal.clientName}
                         </Link>
                         <span className="text-sm text-muted-foreground">
-                          for {proposal.clientName}
+                          {proposal.niche}
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
@@ -132,8 +137,8 @@ export default function DashboardPage() {
                           {format(new Date(proposal.updatedAt), "MMM d, yyyy")}
                         </span>
                         <div className={`px-2.5 py-0.5 rounded-full text-xs font-medium w-20 text-center capitalize
-                          ${proposal.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                            proposal.status === 'declined' ? 'bg-red-100 text-red-800' :
+                          ${proposal.status === 'won' ? 'bg-green-100 text-green-800' :
+                            proposal.status === 'lost' ? 'bg-red-100 text-red-800' :
                             proposal.status === 'sent' ? 'bg-blue-100 text-blue-800' :
                             'bg-slate-100 text-slate-800'
                           }

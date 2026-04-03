@@ -8,14 +8,13 @@
 
 export * from "./createProposalBody";
 export * from "./dashboardStats";
-export * from "./generateProposalContentBody";
-export * from "./generateProposalContentBodySection";
 export * from "./getRecentProposalsParams";
 export * from "./healthStatus";
 export * from "./listProposalsParams";
 export * from "./listProposalsStatus";
 export * from "./proposal";
 export * from "./proposalList";
+export * from "./proposalNiche";
 export * from "./proposalStatus";
 export * from "./updateProposalBody";
 export * from "./updateProposalStatusBody";

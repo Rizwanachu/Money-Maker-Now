@@ -22,7 +22,7 @@ export const listProposalsQueryLimitDefault = 20;
 export const listProposalsQueryOffsetDefault = 0;
 
 export const ListProposalsQueryParams = zod.object({
-  status: zod.enum(["draft", "sent", "accepted", "declined"]).optional(),
+  status: zod.enum(["draft", "sent", "won", "lost"]).optional(),
   limit: zod.coerce.number().default(listProposalsQueryLimitDefault),
   offset: zod.coerce.number().default(listProposalsQueryOffsetDefault),
 });
@@ -33,13 +33,10 @@ export const ListProposalsResponse = zod.object({
       id: zod.number(),
       userId: zod.string(),
       clientName: zod.string(),
-      clientEmail: zod.string().nullish(),
-      projectTitle: zod.string(),
-      industry: zod.string().nullish(),
-      projectDescription: zod.string().nullish(),
-      budget: zod.string().nullish(),
-      timeline: zod.string().nullish(),
-      status: zod.enum(["draft", "sent", "accepted", "declined"]),
+      clientBrief: zod.string(),
+      niche: zod.enum(["Web Design", "Marketing Agency"]),
+      status: zod.enum(["draft", "sent", "won", "lost"]),
+      dealValue: zod.string().nullish(),
       executiveSummary: zod.string().nullish(),
       understanding: zod.string().nullish(),
       approach: zod.string().nullish(),
@@ -59,12 +56,8 @@ export const ListProposalsResponse = zod.object({
  */
 export const CreateProposalBody = zod.object({
   clientName: zod.string(),
-  clientEmail: zod.string().nullish(),
-  projectTitle: zod.string(),
-  industry: zod.string().nullish(),
-  projectDescription: zod.string().nullish(),
-  budget: zod.string().nullish(),
-  timeline: zod.string().nullish(),
+  clientBrief: zod.string(),
+  niche: zod.enum(["Web Design", "Marketing Agency"]),
 });
 
 /**
@@ -78,13 +71,10 @@ export const GetProposalResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
   clientName: zod.string(),
-  clientEmail: zod.string().nullish(),
-  projectTitle: zod.string(),
-  industry: zod.string().nullish(),
-  projectDescription: zod.string().nullish(),
-  budget: zod.string().nullish(),
-  timeline: zod.string().nullish(),
-  status: zod.enum(["draft", "sent", "accepted", "declined"]),
+  clientBrief: zod.string(),
+  niche: zod.enum(["Web Design", "Marketing Agency"]),
+  status: zod.enum(["draft", "sent", "won", "lost"]),
+  dealValue: zod.string().nullish(),
   executiveSummary: zod.string().nullish(),
   understanding: zod.string().nullish(),
   approach: zod.string().nullish(),
@@ -105,12 +95,9 @@ export const UpdateProposalParams = zod.object({
 
 export const UpdateProposalBody = zod.object({
   clientName: zod.string().optional(),
-  clientEmail: zod.string().nullish(),
-  projectTitle: zod.string().optional(),
-  industry: zod.string().nullish(),
-  projectDescription: zod.string().nullish(),
-  budget: zod.string().nullish(),
-  timeline: zod.string().nullish(),
+  clientBrief: zod.string().optional(),
+  niche: zod.enum(["Web Design", "Marketing Agency"]).optional(),
+  dealValue: zod.string().nullish(),
   executiveSummary: zod.string().nullish(),
   understanding: zod.string().nullish(),
   approach: zod.string().nullish(),
@@ -124,13 +111,10 @@ export const UpdateProposalResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
   clientName: zod.string(),
-  clientEmail: zod.string().nullish(),
-  projectTitle: zod.string(),
-  industry: zod.string().nullish(),
-  projectDescription: zod.string().nullish(),
-  budget: zod.string().nullish(),
-  timeline: zod.string().nullish(),
-  status: zod.enum(["draft", "sent", "accepted", "declined"]),
+  clientBrief: zod.string(),
+  niche: zod.enum(["Web Design", "Marketing Agency"]),
+  status: zod.enum(["draft", "sent", "won", "lost"]),
+  dealValue: zod.string().nullish(),
   executiveSummary: zod.string().nullish(),
   understanding: zod.string().nullish(),
   approach: zod.string().nullish(),
@@ -150,30 +134,9 @@ export const DeleteProposalParams = zod.object({
 });
 
 /**
- * @summary Generate AI content for a proposal section
+ * @summary Generate AI content for all 7 proposal sections (streams SSE)
  */
 export const GenerateProposalContentParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const GenerateProposalContentBody = zod.object({
-  section: zod.enum([
-    "executiveSummary",
-    "understanding",
-    "approach",
-    "timelinePlan",
-    "investment",
-    "whyUs",
-    "nextSteps",
-    "all",
-  ]),
-  additionalContext: zod.string().nullish(),
-});
-
-/**
- * @summary Duplicate an existing proposal
- */
-export const DuplicateProposalParams = zod.object({
   id: zod.coerce.number(),
 });
 
@@ -185,20 +148,18 @@ export const UpdateProposalStatusParams = zod.object({
 });
 
 export const UpdateProposalStatusBody = zod.object({
-  status: zod.enum(["draft", "sent", "accepted", "declined"]),
+  status: zod.enum(["draft", "sent", "won", "lost"]),
+  dealValue: zod.string().nullish(),
 });
 
 export const UpdateProposalStatusResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
   clientName: zod.string(),
-  clientEmail: zod.string().nullish(),
-  projectTitle: zod.string(),
-  industry: zod.string().nullish(),
-  projectDescription: zod.string().nullish(),
-  budget: zod.string().nullish(),
-  timeline: zod.string().nullish(),
-  status: zod.enum(["draft", "sent", "accepted", "declined"]),
+  clientBrief: zod.string(),
+  niche: zod.enum(["Web Design", "Marketing Agency"]),
+  status: zod.enum(["draft", "sent", "won", "lost"]),
+  dealValue: zod.string().nullish(),
   executiveSummary: zod.string().nullish(),
   understanding: zod.string().nullish(),
   approach: zod.string().nullish(),
@@ -217,8 +178,8 @@ export const GetDashboardStatsResponse = zod.object({
   totalProposals: zod.number(),
   draftCount: zod.number(),
   sentCount: zod.number(),
-  acceptedCount: zod.number(),
-  declinedCount: zod.number(),
+  wonCount: zod.number(),
+  lostCount: zod.number(),
   winRate: zod.number(),
 });
 
@@ -235,13 +196,10 @@ export const GetRecentProposalsResponseItem = zod.object({
   id: zod.number(),
   userId: zod.string(),
   clientName: zod.string(),
-  clientEmail: zod.string().nullish(),
-  projectTitle: zod.string(),
-  industry: zod.string().nullish(),
-  projectDescription: zod.string().nullish(),
-  budget: zod.string().nullish(),
-  timeline: zod.string().nullish(),
-  status: zod.enum(["draft", "sent", "accepted", "declined"]),
+  clientBrief: zod.string(),
+  niche: zod.enum(["Web Design", "Marketing Agency"]),
+  status: zod.enum(["draft", "sent", "won", "lost"]),
+  dealValue: zod.string().nullish(),
   executiveSummary: zod.string().nullish(),
   understanding: zod.string().nullish(),
   approach: zod.string().nullish(),

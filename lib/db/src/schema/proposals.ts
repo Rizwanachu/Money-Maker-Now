@@ -1,21 +1,21 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const proposalStatusEnum = ["draft", "sent", "accepted", "declined"] as const;
+export const proposalStatusEnum = ["draft", "sent", "won", "lost"] as const;
 export type ProposalStatus = (typeof proposalStatusEnum)[number];
+
+export const nicheEnum = ["Web Design", "Marketing Agency"] as const;
+export type Niche = (typeof nicheEnum)[number];
 
 export const proposalsTable = pgTable("proposals", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
   clientName: text("client_name").notNull(),
-  clientEmail: text("client_email"),
-  projectTitle: text("project_title").notNull(),
-  industry: text("industry"),
-  projectDescription: text("project_description"),
-  budget: text("budget"),
-  timeline: text("timeline"),
+  clientBrief: text("client_brief").notNull(),
+  niche: text("niche").$type<Niche>().notNull(),
   status: text("status").$type<ProposalStatus>().notNull().default("draft"),
+  dealValue: numeric("deal_value", { precision: 12, scale: 2 }),
   executiveSummary: text("executive_summary"),
   understanding: text("understanding"),
   approach: text("approach"),
